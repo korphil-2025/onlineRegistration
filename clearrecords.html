@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Clear Database Records</title>
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+  />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #e0f7ff;
+      padding: 20px;
+      min-height: 100vh;
+      margin: 0;
+      color: #0077b6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    #buttons-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 400px;
+    }
+    button {
+      padding: 12px 20px;
+      font-size: 18px;
+      border-radius: 8px;
+      border: none;
+      background-color: #0096c7;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #005f80;
+    }
+    button:disabled {
+      background-color: #a1c4d8;
+      cursor: not-allowed;
+    }
+    #status {
+      margin-top: 20px;
+      max-width: 400px;
+      text-align: center;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Clear Database Records</h1>
+  <div id="buttons-container">
+    <button id="clearAllBtn"><i class="fa-solid fa-trash"></i> Clear All Records</button>
+  </div>
+  <div id="status"></div>
+
+  <script type="module">
+   import { rtdb } from './firebase-config.js';
+import { ref, get, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+const buttonsContainer = document.getElementById("buttons-container");
+const clearAllBtn = document.getElementById("clearAllBtn");
+const statusEl = document.getElementById("status");
+
+function setStatus(msg, isError = false) {
+  statusEl.textContent = msg;
+  statusEl.style.color = isError ? "red" : "#0077b6";
+}
+
+async function promptPassword() {
+  return new Promise((resolve) => {
+    const pwd = prompt("Enter admin password to confirm deletion:");
+    resolve(pwd);
+  });
+}
+
+async function verifyPassword(inputPwd) {
+  try {
+    const pwdSnapshot = await get(ref(rtdb, 'accounts/admin/p_word'));
+    if (!pwdSnapshot.exists()) {
+      setStatus("Admin password not found in database.", true);
+      return false;
+    }
+    const storedPwd = pwdSnapshot.val();
+    return storedPwd === inputPwd;
+  } catch (err) {
+    setStatus("Error verifying password: " + err.message, true);
+    return false;
+  }
+}
+
+async function deleteNodes(nodesToDelete) {
+  try {
+    setStatus("Deleting records...");
+    const promises = nodesToDelete.map(node => remove(ref(rtdb, node)));
+    await Promise.all(promises);
+    setStatus("Deletion successful.");
+    loadNodes();
+  } catch (err) {
+    setStatus("Error deleting records: " + err.message, true);
+  }
+}
+
+async function loadNodes() {
+  try {
+    const rootRef = ref(rtdb, '/');
+    const snapshot = await get(rootRef);
+    buttonsContainer.querySelectorAll('button:not(#clearAllBtn)').forEach(b => b.remove());
+    if (!snapshot.exists()) {
+      setStatus("No data found.");
+      return;
+    }
+    const data = snapshot.val();
+    const keys = Object.keys(data).filter(k => k !== 'accounts');
+    if (keys.length === 0) {
+      setStatus("No records found except 'accounts'.");
+      return;
+    }
+    keys.forEach(key => {
+      const btn = document.createElement("button");
+      btn.innerHTML = `<i class="fa-solid fa-trash"></i> Clear "${key}"`;
+      btn.dataset.node = key;
+      buttonsContainer.appendChild(btn);
+
+      btn.addEventListener("click", async () => {
+        const confirmPwd = await promptPassword();
+        if (!confirmPwd) {
+          setStatus("Deletion canceled.");
+          return;
+        }
+        setStatus("Verifying password...");
+        const valid = await verifyPassword(confirmPwd);
+        if (!valid) {
+          setStatus("Invalid password. Deletion aborted.", true);
+          return;
+        }
+        if (confirm(`Are you sure you want to delete all records under "${key}"? This action cannot be undone.`)) {
+          await deleteNodes([key]);
+        } else {
+          setStatus("Deletion canceled.");
+        }
+      });
+    });
+  } catch (err) {
+    setStatus("Error loading nodes: " + err.message, true);
+  }
+}
+
+clearAllBtn.addEventListener("click", async () => {
+  const confirmPwd = await promptPassword();
+  if (!confirmPwd) {
+    setStatus("Deletion canceled.");
+    return;
+  }
+  setStatus("Verifying password...");
+  const valid = await verifyPassword(confirmPwd);
+  if (!valid) {
+    setStatus("Invalid password. Deletion aborted.", true);
+    return;
+  }
+  if (confirm("Are you sure you want to delete ALL records except 'accounts'? This action cannot be undone.")) {
+    try {
+      setStatus("Deleting all records...");
+      const rootSnap = await get(ref(rtdb, '/'));
+      if (!rootSnap.exists()) {
+        setStatus("No data found.");
+        return;
+      }
+      const allKeys = Object.keys(rootSnap.val()).filter(k => k !== "accounts");
+      if (allKeys.length === 0) {
+        setStatus("No records to delete.");
+        return;
+      }
+      await deleteNodes(allKeys);
+    } catch (error) {
+      setStatus("Error deleting all records: " + error.message, true);
+    }
+  } else {
+    setStatus("Deletion canceled.");
+  }
+});
+
+loadNodes();
+  </script>
+</body>
+</html>

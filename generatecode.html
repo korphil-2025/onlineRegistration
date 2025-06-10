@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Generate Code</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #e0f7ff;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      color: #0077b6;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    select, button {
+      font-size: 16px;
+      padding: 8px 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #0077b6;
+      outline: none;
+      cursor: pointer;
+      min-width: 220px;
+    }
+    button {
+      background-color: #0096c7;
+      color: white;
+      border: none;
+      transition: background-color 0.3s;
+    }
+    button:hover:not(:disabled) {
+      background-color: #005f80;
+    }
+    button:disabled {
+      background-color: #a1c4d8;
+      cursor: not-allowed;
+    }
+    #message {
+      max-width: 800px;
+      width: 100%;
+      text-align: left;
+      background: white;
+      padding: 15px 25px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+      margin-top: 20px;
+      word-wrap: break-word;
+    }
+    ul {
+      padding-left: 0;
+      margin: 0;
+      list-style: none;
+    }
+    li {
+      margin-bottom: 15px;
+    }
+    .code-text {
+      font-family: monospace;
+      background: #caf0f8;
+      padding: 6px 12px;
+      border-radius: 6px;
+      user-select: all;
+      flex-grow: 1;
+    }
+    .copy-btn {
+      background-color: #0096c7;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 6px 12px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 50px;
+      transition: background-color 0.3s;
+      margin-left: 10px;
+    }
+    .copy-btn:hover {
+      background-color: #005f80;
+    }
+    .link-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 5px;
+    }
+    .home-icon {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 24px;
+      color: #0077b6;
+      cursor: pointer;
+      transition: color 0.3s;
+    }
+    .home-icon:hover {
+      color: #005f80;
+    }
+    #roomCheckboxList {
+      display: none;
+      margin-top: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      width: 100%;
+      border: 1px solid #0077b6;
+      border-radius: 8px;
+      padding: 10px;
+      background: white;
+    }
+    #roomCheckboxList label {
+      display: block;
+      margin-bottom: 5px;
+      cursor: pointer;
+    }
+    .toggle-container {
+      margin-top: 10px;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="home-icon" onclick="goHome()">
+    <i class="fas fa-home"></i>
+  </div>
+  <h1>Generate Code</h1>
+
+  <label for="roomSelect">Select Room:</label>
+  <select id="roomSelect">
+    <option value="all">-- All Rooms --</option>
+  </select>
+<div id="roomCheckboxList"></div>
+  <div class="toggle-container">
+    <label>
+      <input type="checkbox" id="multiSelectToggle" />
+      Select Multiple
+    </label>
+  </div>
+
+  <button id="changeLinkBtn">Generate Code</button>
+
+  <div id="message">Select a room or rooms, then click "Generate Code".</div>
+
+ <script type="module">
+  import { db } from './firebase-config.js';
+  import {
+    collection,
+    getDocs,
+    doc,
+    updateDoc
+  } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+  const roomSelect = document.getElementById("roomSelect");
+  const changeLinkBtn = document.getElementById("changeLinkBtn");
+  const message = document.getElementById("message");
+  const roomCheckboxList = document.getElementById("roomCheckboxList");
+  const multiSelectToggle = document.getElementById("multiSelectToggle");
+
+  function generateRandomCode(length = 12) {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  let roomDocs = [];
+
+  async function loadRooms() {
+    try {
+      const roomsCollection = collection(db, "rooms");
+      const roomsSnapshot = await getDocs(roomsCollection);
+      roomDocs = roomsSnapshot.docs;
+
+      // Add 'All Rooms' option first
+      const allOption = document.createElement("option");
+      allOption.value = "all";
+      allOption.textContent = "All Rooms";
+      roomSelect.appendChild(allOption);
+
+      roomDocs.forEach(roomDoc => {
+        const roomId = roomDoc.id;
+        const roomName = roomDoc.data().roomName || roomId;
+
+        // Dropdown
+        const option = document.createElement("option");
+        option.value = roomId;
+        option.textContent = roomName;
+        roomSelect.appendChild(option);
+
+        // Checkbox
+        const label = document.createElement("label");
+        label.style.display = "block";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = roomId;
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(" " + roomName));
+        roomCheckboxList.appendChild(label);
+      });
+    } catch (error) {
+      message.textContent = "Error loading rooms: " + error.message;
+      changeLinkBtn.disabled = true;
+    }
+  }
+
+  multiSelectToggle.addEventListener("change", () => {
+    const isChecked = multiSelectToggle.checked;
+    roomSelect.style.display = isChecked ? "none" : "inline-block";
+    roomCheckboxList.style.display = isChecked ? "block" : "none";
+  });
+
+  changeLinkBtn.addEventListener("click", async () => {
+    const useMulti = multiSelectToggle.checked;
+    let selectedRooms = [];
+
+    if (useMulti) {
+      roomCheckboxList.querySelectorAll("input[type='checkbox']:checked").forEach(cb => {
+        selectedRooms.push(cb.value);
+      });
+    } else {
+      const selectedValue = roomSelect.value;
+      if (selectedValue === "all") {
+        selectedRooms = roomDocs.map(doc => doc.id); // Select all rooms
+      } else {
+        selectedRooms.push(selectedValue);
+      }
+    }
+
+    // Remove empty selections or errors
+    selectedRooms = selectedRooms.filter(id => id);
+
+    if (selectedRooms.length === 0) {
+      message.textContent = "Please select at least one valid room.";
+      return;
+    }
+
+    message.textContent = "Updating codes...";
+    changeLinkBtn.disabled = true;
+    roomSelect.disabled = true;
+
+    try {
+      const updatedRooms = [];
+      const updatePromises = [];
+
+      for (const roomId of selectedRooms) {
+        const roomDocRef = doc(db, "rooms", roomId);
+        const roomData = roomDocs.find(r => r.id === roomId)?.data();
+        const newCode = generateRandomCode(12);
+        const roomName = roomData?.roomName || roomId;
+
+        updatedRooms.push({ roomName, newCode });
+        updatePromises.push(updateDoc(roomDocRef, { code: newCode }));
+      }
+
+      await Promise.all(updatePromises);
+
+      let html = "<h2>Updated Room Codes:</h2><ul>";
+      updatedRooms.forEach(r => {
+        html += `
+          <li>
+            <div><strong>${r.roomName}:</strong></div>
+            <div class="link-container">
+              <div class="code-text">${r.newCode}</div>
+              <button class="copy-btn" data-code="${r.newCode}" title="Copy code">
+                <i class="fa-solid fa-copy"></i>
+              </button>
+            </div>
+          </li>
+        `;
+      });
+      html += "</ul>";
+      message.innerHTML = html;
+
+      document.querySelectorAll(".copy-btn").forEach(button => {
+        button.addEventListener("click", () => {
+          const code = button.getAttribute("data-code");
+          navigator.clipboard.writeText(code).then(() => {
+            button.textContent = "Copied!";
+            setTimeout(() => {
+              button.innerHTML = '<i class="fa-solid fa-copy"></i>';
+            }, 1500);
+          }).catch(() => {
+            alert("Failed to copy code.");
+          });
+        });
+      });
+
+    } catch (error) {
+      message.textContent = "Error updating codes: " + error.message;
+    } finally {
+      changeLinkBtn.disabled = false;
+      roomSelect.disabled = false;
+    }
+  });
+
+  window.goHome = function () {
+    window.location.href = "admin.html";
+  };
+
+  loadRooms();
+</script>
+</body>
+</html>

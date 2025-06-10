@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Online Registration</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #e3f2fd;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+    .container {
+      background: white;
+      padding: 30px 40px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 300px;
+    }
+    .loader {
+      border: 5px solid #e3f2fd;
+      border-top: 5px solid #42a5f5;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 10px;
+      display: none;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    h2 {
+      margin: 0 0 20px;
+      color: #1565c0;
+      text-align: center;
+    }
+    input, button {
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #90caf9;
+      border-radius: 5px;
+      font-size: 16px;
+      width: 90%;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #42a5f5;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #1e88e5;
+    }
+    #statusText {
+      margin-top: 10px;
+      color: #d32f2f;
+      min-height: 20px;
+      text-align: center;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Enter Room Code</h2>
+    <input type="text" id="roomCodeInput" placeholder="Enter Code Here" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+    <button id="submitBtn">Submit</button>
+    <div class="loader" id="loader"></div>
+    <p id="statusText"></p>
+  </div>
+
+  <script type="module">
+    import { db } from './firebase-config.js';
+    import {
+      collection,
+      getDocs
+    } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+    const statusText = document.getElementById("statusText");
+    const loader = document.getElementById("loader");
+    const input = document.getElementById("roomCodeInput");
+    const button = document.getElementById("submitBtn");
+
+    async function validateRoom(code) {
+      loader.style.display = "block";
+      statusText.textContent = "";
+
+      try {
+        const roomsRef = collection(db, "rooms");
+        const snapshot = await getDocs(roomsRef);
+
+        let found = false;
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.code === code) {
+            localStorage.setItem("scannedRoom", data.roomName);
+            localStorage.setItem("scannedFloor", data.floor);
+            found = true;
+          }
+        });
+
+        if (found) {
+          window.location.href = "register.html";
+        } else {
+          statusText.textContent = "Invalid code.";
+          loader.style.display = "none";
+        }
+      } catch (error) {
+        console.error("Error checking room:", error);
+        statusText.textContent = "Error loading page.";
+        loader.style.display = "none";
+      }
+    }
+
+    button.addEventListener("click", () => {
+      const code = input.value.trim();
+      if (code === "") {
+        statusText.textContent = "Please enter a code.";
+        return;
+      }
+      validateRoom(code);
+    });
+  </script>
+</body>
+</html>
