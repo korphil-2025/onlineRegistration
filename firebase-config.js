@@ -3,14 +3,14 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-
 import { getDatabase } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC-5MSxxahHtcoVEGlJyr7p-5SjxbmyGzo",
-  authDomain: "qrlog-36d7a.firebaseapp.com",
-  databaseURL: "https://qrlog-36d7a-default-rtdb.firebaseio.com",
-  projectId: "qrlog-36d7a",
-  storageBucket: "qrlog-36d7a.firebasestorage.app",
-  messagingSenderId: "630622697408",
-  appId: "1:630622697408:web:23f1abd83f5aeec7a2fa25",
-  measurementId: "G-TNF6NQ5D2G"
+  apiKey: "AIzaSyBhT0MOyXWrQ_6iUYHwIssQi53TjXqE62E",
+  authDomain: "onlineregistration-a380e.firebaseapp.com",
+  databaseURL: "https://onlineregistration-a380e-default-rtdb.firebaseio.com",
+  projectId: "onlineregistration-a380e",
+  storageBucket: "onlineregistration-a380e.firebasestorage.app",
+  messagingSenderId: "260517153442",
+  appId: "1:260517153442:web:3a2b6a254c994a346ae5fb",
+  measurementId: "G-WJVVNTY0M1"
 };
 
 const app = initializeApp(firebaseConfig);
